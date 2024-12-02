@@ -1,0 +1,84 @@
+version: "3.7" 
+services:   
+  db:
+    image: postgres:latest
+    restart: always
+    ports:
+      - 8432:5432
+    environment:
+      POSTGRES_DB: xmtask
+      POSTGRES_USER: xmtask
+      POSTGRES_PASSWORD: xmtask
+    volumes:
+      - pgdata:/tmp/pgdata
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xmtask"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - '2181:2181'
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+    expose:
+      - '29092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  init-kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - kafka
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic test-topic --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+
+  app:
+    image: golang:1.22
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - 8080:8080
+    depends_on:
+      - db
+      - init-kafka
+    links:
+      - db
+      - kafka
+    environment:
+      WAIT_HOSTS: db:5432, kafka:9092
+      LISTEN_ADDRESS: ":8080"
+      DB_DSN: "postgres://xmtask:xmtask@db:5432/xmtask?sslmode=disable"
+      KAFKA_HOST: "kafka:29092"
+      KAFKA_TOPIC: "test-topic"
+      JWT_KEY: "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAaAAAABNlY2RzYS1zaGEyLW5pc3RwMjU2AAAACG5pc3RwMjU2AAAAQQSKYZl2D7g785KQXnvA7kvVcvaqsXGTuI5LOn+yubJoX4DqNLwjv0uovFi4mrV+1gCEh3iqY8PjCiYwqgdHnhCuAAAAqE/YG3FP2BtxAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBIphmXYPuDvzkpBee8DuS9Vy9qqxcZO4jks6f7K5smhfgOo0vCO/S6i8WLiatX7WAISHeKpjw+MKJjCqB0eeEK4AAAAhAJ+BEr1+KJMzraVr/sy2VsoO6N5pQKVRxGomRQ7k/wVzAAAACnVzZXJAYXNwaWQBAgMEBQ=="
+volumes:
+  pgdata:
+    driver: local

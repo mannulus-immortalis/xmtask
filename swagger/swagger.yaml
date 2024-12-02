@@ -1,0 +1,212 @@
+openapi: 3.0.1
+info:
+  title: xm task
+  version: 0.1.0
+servers: []
+paths:
+  /api/v1/company:
+    post:
+      summary: Create new company
+      description: all fields are required, except description
+      security:
+        - JWT: [ "writer" ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemCreateRequest'
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemResponse'
+        400:
+          description: Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /api/v1/company/{id}:
+    patch:
+      summary: Update existing company
+      description: minimum one field is required
+      security:
+        - JWT: [ "writer" ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: UUID of company to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemUpdateRequest'
+      responses:
+        200:
+          description: OK
+        400:
+          description: Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete existing company
+      security:
+        - JWT: [ "writer" ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: UUID of company to update
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get existing company by UUID
+      security:
+        - JWT: [ "reader" ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: UUID of company to update
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemResponse'
+        400:
+          description: Request Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    JWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: error description
+
+    ItemCreateRequest:
+      type: object
+      required:
+        - name
+        - employee_count
+        - is_registered
+        - type
+      properties:
+        name:
+          type: string
+          description: unique name 1-15 characters long
+        description:
+          type: string
+          description: optional description up to 3000 characters long
+        employee_count:
+          type: number
+          description: employees count
+        is_registered:
+          type: boolean
+        type:
+          type: string
+          enum: ["Corporations", "NonProfit", "Cooperative", "Sole Proprietorship"]
+          description: type of legal entity, fixed set of values
+
+    ItemUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: unique name 1-15 characters long
+        description:
+          type: string
+          description: optional description up to 3000 characters long
+        employee_count:
+          type: number
+          description: employees count
+        is_registered:
+          type: boolean
+        type:
+          type: string
+          enum: ["Corporations", "NonProfit", "Cooperative", "Sole Proprietorship"]
+          description: type of legal entity, fixed set of values
+        
+    ItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: unique name 1-15 characters long
+        description:
+          type: string
+          description: optional description up to 3000 characters long
+        employee_count:
+          type: number
+          description: employees count
+        is_registered:
+          type: boolean
+        type:
+          type: string
+          enum: ["Corporations", "NonProfit", "Cooperative", "Sole Proprietorship"]
+          description: type of legal entity, fixed set of values
+
